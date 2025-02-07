@@ -7,7 +7,6 @@ class RegisterCubit extends Cubit<RegisterState> {
   final RegisterRepository registerRepository;
 
   RegisterCubit({required this.registerRepository}) : super(RegisterInitial());
-
   Future<void> logIn(String username, String password) async {
     emit(RegisterLoading());
     try {

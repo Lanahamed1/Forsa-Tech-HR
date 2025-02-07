@@ -37,38 +37,43 @@ class Widgets {
     );
   }
 
-  Widget buildSignInButton(BuildContext context, GlobalKey<FormState> formKey, {required Null Function() onPressed}) {
-    return Container(
-      width: double.infinity,
-      height: 40,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(150),
-      ),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(150),
-          ),
-          backgroundColor:  Color.fromARGB(246, 0, 25, 150),
+ Widget buildSignInButton(
+  BuildContext context,
+  GlobalKey<FormState> formKey,
+  {required VoidCallback onPressed}) // ✅ التأكد من أن `onPressed` مطلوب
+ {
+  return Container(
+    width: double.infinity,
+    height: 40,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(150),
+    ),
+    child: ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(150),
         ),
-        onPressed: () {
-          if (formKey.currentState!.validate()) {
-            // Form is valid, proceed with sign in
-          } else {
-            const snackBar = SnackBar(
-              content: Text("Form isn't valid!"),
-            );
-            ScaffoldMessenger.of(context).showSnackBar(snackBar);
-          }
-        },
-        child: const Text(
-          "Log in",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white),
-        ),
+        backgroundColor: const Color.fromARGB(246, 0, 25, 150),
       ),
-    );
-  }
+      onPressed: () { 
+        if (formKey.currentState!.validate()) {
+          onPressed(); // ✅ استدعاء `onPressed` الذي يتم تمريره من `BlocBuilder`
+        } else {
+          const snackBar = SnackBar(
+            content: Text("Form isn't valid!"),
+          );
+          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        }
+      },
+      child: const Text(
+        "Log in",
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.white),
+      ),
+    ),
+  );
+}
+
   // Widget buildDivider(){
   //   return Expanded(
   //     flex: 2,

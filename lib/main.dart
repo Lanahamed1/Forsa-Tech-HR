@@ -5,22 +5,22 @@ import 'package:forsatech/business_logic/cubit/register_cubit.dart';
 import 'package:forsatech/data/repository/register_repoistory.dart';
 // ignore: depend_on_referenced_packages
 import 'package:provider/provider.dart';
-import 'package:forsatech/data/web_services/register_web_services.dart'; 
+import 'package:forsatech/data/web_services/register_web_services.dart';
 
 void main() {
-  runApp(
-    MultiProvider(
-      providers: [
-        Provider<RegisterRepository>(
-          create: (_) => RegisterRepository(registerWebServices: RegisterWebServices()), 
-        ),
-        BlocProvider<RegisterCubit>(
-          create: (context) => RegisterCubit(registerRepository: context.read<RegisterRepository>()),
-        ),
-      ],
-      child: ForsaTachApp(appRouter: AppRouter()),
-    ),
-  );
+  runApp(MultiProvider(
+    providers: [
+      Provider<RegisterRepository>(
+        create: (_) =>
+            RegisterRepository(registerWebServices: RegisterWebServices()),
+      ),
+      BlocProvider<RegisterCubit>(
+        create: (context) => RegisterCubit(
+            registerRepository: context.read<RegisterRepository>()),
+      ),
+    ],
+    child: ForsaTachApp(appRouter: AppRouter()),
+  ));
 }
 
 class ForsaTachApp extends StatelessWidget {

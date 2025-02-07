@@ -1,6 +1,9 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forsatech/business_logic/cubit/register_cubit.dart';
+import 'package:forsatech/data/repository/register_repoistory.dart';
 import 'package:forsatech/presentation/widgets/widgets.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -19,7 +22,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => RegisterCubit(registerRepository: context.read()),
+      create: (context) => RegisterCubit(
+          registerRepository:
+              RepositoryProvider.of<RegisterRepository>(context)),
       child: Scaffold(
         backgroundColor: Colors.white,
         body: BlocListener<RegisterCubit, RegisterState>(
@@ -55,7 +60,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 16),
                       child: Form(
                         key: formKey,
                         child: Column(
@@ -76,7 +82,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             const SizedBox(height: 130),
                             const Text(
                               'Login as a human resource',
-                              style: TextStyle(fontSize: 17, color: Colors.black, fontFamily: 'CustomFont'),
+                              style: TextStyle(
+                                  fontSize: 17,
+                                  color: Colors.black,
+                                  fontFamily: 'CustomFont'),
                             ),
                             const SizedBox(height: 20),
                             widgets.buildTextFormField(
@@ -84,7 +93,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               label: "E-mail",
                               hintText: "Enter your e-mail",
                               icon: Icons.email_outlined,
-                              validator: (value) => value!.isEmpty ? "The field is empty" : null,
+                              validator: (value) =>
+                                  value!.isEmpty ? "The field is empty" : null,
                             ),
                             const SizedBox(height: 40),
                             widgets.buildTextFormField(
@@ -95,7 +105,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               obscureText: true,
                               validator: (value) {
                                 if (value!.isEmpty) return "The field is empty";
-                                if (value.length < 12) return "Minimum length is 12 characters";
+                                if (value.length < 8)
+                                  return "Minimum length is 12 characters";
                                 return null;
                               },
                             ),
@@ -106,15 +117,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 onPressed: () {},
                                 child: const Text(
                                   "Forgot password?",
-                                  style: TextStyle(color: Color.fromARGB(246, 0, 25, 150)),
+                                  style: TextStyle(
+                                      color: Color.fromARGB(246, 0, 25, 150)),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 75),
+                           
                             BlocBuilder<RegisterCubit, RegisterState>(
                               builder: (context, state) {
                                 if (state is RegisterLoading) {
-                                  return const Center(child: CircularProgressIndicator());
+                                  return const Center(
+                                      child: CircularProgressIndicator());
                                 }
                                 return widgets.buildSignInButton(
                                   context,
