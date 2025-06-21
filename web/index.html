@@ -1,36 +1,104 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+  <meta name="google-signin-client_id" content="836989400409-gr9u5p3dpprh4d07i9tsp46fpe7mahv0.apps.googleusercontent.com">
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+  <script src="https://apis.google.com/js/api.js"></script>
 
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+  <!-- GSI -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+
+  <script>
+    // إعداد Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCYV_4lTeFYDIcaGZqDM9CT6VDJ7L9ZYOk",
+      authDomain: "forsa-204b9.firebaseapp.com",
+      projectId: "forsa-204b9",
+      storageBucket: "forsa-204b9.firebasestorage.app",
+      messagingSenderId: "134152629656",
+      appId: "1:134152629656:web:539b2b23784823d6bdcfed",
+      measurementId: "G-PKL2RBSP54"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
+
+    messaging.requestPermission()
+      .then(() => messaging.getToken({
+        vapidKey: 'BHzVJj-ZAA8aAJh6Bjr0CY1aCYQ7ZJ-MOIOq-TuzL-mD8IHuPDqeDNJDTGP9ni-7zQXFSRWiBFY7ry3KE-QPjAQ'
+      }))
+      .then(token => console.log("✅ FCM Token:", token))
+      .catch(err => console.error("🔴 FCM Error:", err));
+
+    messaging.onMessage(payload => {
+      console.log("🔔 إشعار وارد:", payload);
+      alert(`${payload.notification.title}: ${payload.notification.body}`);
+    });
+
+    // انتظار تحميل gapi.client قبل المتابعة
+    function waitForGapiAndInit(accessToken) {
+      const check = () => {
+        if (window.gapi && gapi.load) {
+          gapi.load('client', () => {
+            gapi.client.init({
+              apiKey: firebaseConfig.apiKey,
+              clientId: '836989400409-gr9u5p3dpprh4d07i9tsp46fpe7mahv0.apps.googleusercontent.com',
+              discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+              scope: 'https://www.googleapis.com/auth/calendar'
+            }).then(() => {
+              gapi.client.setToken({ access_token: accessToken });
+              console.log("✅ تم تعيين التوكن في gapi.client");
+            }).catch(error => {
+              console.error("🔴 فشل تهيئة gapi.client:", error);
+            });
+          });
+        } else {
+          setTimeout(() => check(), 100); // إعادة المحاولة بعد 100ms
+        }
+      };
+      check();
+    }
+
+    // عند استجابة تسجيل الدخول
+    function handleCredentialResponse(response) {
+      console.log("🟡 ID Token:", response.credential);
+
+      google.accounts.oauth2.token({
+        client_id: '836989400409-gr9u5p3dpprh4d07i9tsp46fpe7mahv0.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/calendar',
+        callback: tokenResponse => {
+          console.log("✅ Access Token:", tokenResponse.access_token);
+          waitForGapiAndInit(tokenResponse.access_token);
+        }
+      });
+    }
+
+    // عند تحميل الصفحة
+    window.onload = () => {
+      google.accounts.id.initialize({
+        client_id: '836989400409-gr9u5p3dpprh4d07i9tsp46fpe7mahv0.apps.googleusercontent.com',
+        callback: handleCredentialResponse,
+        auto_select: false
+      });
+      google.accounts.id.prompt();
+    };
+  </script>
+
+  <!-- Flutter & PWA Metadata -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
   <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="forsatech">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>forsatech</title>
   <link rel="manifest" href="manifest.json">
+  <title>forsatech</title>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

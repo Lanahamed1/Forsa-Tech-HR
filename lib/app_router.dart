@@ -1,46 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:forsatech/business_logic/cubit/register_cubit.dart';
 import 'package:forsatech/constants/strings.dart';
-import 'package:forsatech/data/repository/register_repoistory.dart';
-import 'package:forsatech/presentation/screens/register_screen.dart';
+import 'package:forsatech/dash_board/business_logic/cubit/dash_board_cubit.dart';
+import 'package:forsatech/dash_board/data/repository/dash_board_repository.dart';
+import 'package:forsatech/dash_board/presentation/screens/dash_board_screen.dart';
+import 'package:forsatech/register/business_logic/cubit/register_cubit.dart';
+import 'package:forsatech/register/presentation/screens/register_screen.dart';
+
 
 class AppRouter {
   Route? generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case registerScreen:
         return MaterialPageRoute(
-          builder: (context) => BlocProvider(
-            create: (context) => RegisterCubit(
-              registerRepository: context.read<RegisterRepository>(),
+          builder: (context) => RegisterScreen(),
+        );
+
+      case dashboardScreen:
+        return MaterialPageRoute(
+          builder: (context) => MultiBlocProvider(
+            providers: [
+              BlocProvider.value(
+                value: context.read<RegisterCubit>(),
+              ),
+              BlocProvider(
+                create: (context) => OpportunityCubit(
+                  context.read<OpportunityRepository>(),
+                ),
+              ),
+            ],
+            child: const DashboardScreen(),
+          ),
+        );
+
+      default:
+        return MaterialPageRoute(
+          builder: (_) => const Scaffold(
+            body: Center(
+              child: Text("404 - Page not found"),
             ),
-            child: RegisterScreen(),
           ),
         );
     }
-    return null;
   }
 }
-
-
-    //  case Routes.loginScreen:
-    //     return MaterialPageRoute(
-    //       builder: (_) => BlocProvider(
-    //         create: (context) => getIt<LoginCubit>(),
-    //         child: const LoginScreen(),
-    //       ),
-    //     );
-    //   case Routes.signUpScreen:
-    //     return MaterialPageRoute(
-    //       builder: (_) => BlocProvider(
-    //         create: (context) => getIt<SignupCubit>(),
-    //         child: const SignupScreen(),
-    //       ),
-    //     );
-    //   case Routes.homeScreen:
-    //     return MaterialPageRoute(
-    //       builder: (_) => BlocProvider(
-    //         create: (context) => HomeCubit(getIt())..getSpecializations(),
-    //         child: const HomeScreen(),
-    //       ),
-    //     );
