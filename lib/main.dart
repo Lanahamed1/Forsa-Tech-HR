@@ -1,17 +1,23 @@
 // ignore: deprecated_member_use, avoid_web_libraries_in_flutter
-import 'dart:html' as html; // لإضافة خدمة Firebase SW
+import 'dart:html' as html;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forsatech/app_router.dart';
 import 'package:forsatech/dash_board/business_logic/cubit/dash_board_cubit.dart';
 import 'package:forsatech/dash_board/data/repository/announcement_repository.dart';
+import 'package:forsatech/dash_board/data/repository/appointment_repository.dart';
 import 'package:forsatech/dash_board/data/repository/candidate_filter_repsitory.dart';
-import 'package:forsatech/dash_board/data/repository/dash_board_repository.dart';
+import 'package:forsatech/dash_board/data/repository/interview_repository.dart';
+import 'package:forsatech/dash_board/data/repository/opportunity_repository.dart';
+import 'package:forsatech/dash_board/data/repository/profile_repository.dart';
 import 'package:forsatech/dash_board/data/web_services/announcement_web_services.dart';
 import 'package:forsatech/dash_board/data/web_services/candidate_filter_web_services.dart';
-import 'package:forsatech/dash_board/data/web_services/dash_board_web_services.dart';
-import 'package:forsatech/dash_board/data/web_services/google_calendar_service.dart';
+import 'package:forsatech/dash_board/data/web_services/interview_web_services.dart';
+import 'package:forsatech/dash_board/data/web_services/opportunity_web_services.dart';
+import 'package:forsatech/dash_board/data/web_services/google_calendar_web_service.dart';
+import 'package:forsatech/dash_board/data/web_services/profile_web_servoces.dart';
+import 'package:forsatech/notification_bell.dart';
 import 'package:forsatech/register/business_logic/cubit/register_cubit.dart';
 import 'package:forsatech/register/data/repository/register_repoistory.dart';
 import 'package:forsatech/register/data/web_services/register_web_services.dart';
@@ -20,27 +26,32 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 // ignore: depend_on_referenced_packages
 import 'package:provider/provider.dart';
 
+// استيراد dotenv
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('📩 Background message: ${message.messageId}');
+  print(' Background message: ${message.messageId}');
 }
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // تحميل متغيرات البيئة من ملف .env
+  await dotenv.load(fileName: ".env");
 
   if (kIsWeb) {
     await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyCYV_4lTeFYDIcaGZqDM9CT6VDJ7L9ZYOk",
-        authDomain: "forsa-204b9.firebaseapp.com",
-        projectId: "forsa-204b9",
-        storageBucket: "forsa-204b9.firebasestorage.app",
-        messagingSenderId: "134152629656",
-        appId: "1:134152629656:web:539b2b23784823d6bdcfed",
-        measurementId: "G-PKL2RBSP54",
+      options: FirebaseOptions(
+        apiKey: dotenv.env['API_KEY']!,
+        authDomain: dotenv.env['AUTH_DOMAIN']!,
+        projectId: dotenv.env['PROJECT_ID']!,
+        storageBucket: dotenv.env['STORAGE_BUCKET']!,
+        messagingSenderId: dotenv.env['MESSAGING_SENDER_ID']!,
+        appId: dotenv.env['APP_ID']!,
+        measurementId: dotenv.env['MEASUREMENT_ID']!,
       ),
     );
 
-    // تسجيل service worker لتلقي الرسائل بالخلفية
     await html.window.navigator.serviceWorker
         ?.register('/firebase-messaging-sw.js');
   } else {
@@ -49,49 +60,75 @@ void main() async {
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  runApp(
-    MultiProvider(
+  runApp(ForsaTechApp());
+}
+
+class ForsaTechApp extends StatelessWidget {
+  final AppRouter _appRouter = AppRouter();
+
+  ForsaTechApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
       providers: [
         Provider<RegisterRepository>(
           create: (_) =>
               RegisterRepository(registerWebServices: RegisterWebServices()),
         ),
-        BlocProvider<RegisterCubit>(
-          create: (context) => RegisterCubit(
-              registerRepository: context.read<RegisterRepository>()),
-        ),
-        Provider<AppointmentRepository>(
-          create: (_) => AppointmentRepository(),
-        ),
-        BlocProvider<AppointmentCubit>(
-          create: (context) =>
-              AppointmentCubit(context.read<AppointmentRepository>()),
-        ),
-        BlocProvider<CandidateCubit>(
-            create: (_) =>
-                CandidateCubit(CandidateRepository(WebServerService()))),
         Provider<OpportunityWebService>(
           create: (_) => OpportunityWebService(),
+        ),
+        Provider<InterviewRepository>(
+          create: (_) => InterviewRepository(InterviewWebServies()),
         ),
         Provider<OpportunityRepository>(
           create: (context) => OpportunityRepository(
             webService: context.read<OpportunityWebService>(),
           ),
         ),
-        BlocProvider<OpportunityCubit>(
-            create: (context) =>
-                OpportunityCubit(context.read<OpportunityRepository>())),
-        BlocProvider(
-            create: (_) => AnnouncementCubit(
-                AnnouncementRepository(AnnouncementWebServices()))),
-        BlocProvider(
-            create: (_) => JobApponitCubit(
-                JobAppointRepository(JobAppointWebService())))
-
+        Provider<AppointmentRepository>(
+          create: (_) => AppointmentRepository(),
+        ),
       ],
-      child: ForsaTachApp(appRouter: AppRouter()),
-    ),
-  );
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<RegisterCubit>(
+            create: (context) => RegisterCubit(
+                registerRepository: context.read<RegisterRepository>()),
+          ),
+          BlocProvider<AppointmentCubit>(
+            create: (context) =>
+                AppointmentCubit(context.read<AppointmentRepository>()),
+          ),
+          BlocProvider<CandidateFilterCubit>(
+              create: (_) => CandidateFilterCubit(
+                  CandidateFilterRepository(CandidateFilterWebService()))),
+          BlocProvider<OpportunityCubit>(
+            create: (context) =>
+                OpportunityCubit(context.read<OpportunityRepository>()),
+          ),
+          BlocProvider<AnnouncementCubit>(
+            create: (_) => AnnouncementCubit(
+                AnnouncementRepository(AnnouncementWebServices())),
+          ),
+          BlocProvider<JobApponitCubit>(
+            create: (_) =>
+                JobApponitCubit(JobAppointRepository(JobAppointWebService())),
+          ),
+          BlocProvider<InterviewCubit>(
+            create: (context) => InterviewCubit(
+              context.read<InterviewRepository>(),
+            ),
+          ),
+          BlocProvider<CompanyCubit>(
+            create: (_) => CompanyCubit(CompanyRepository(CompanyWebService())),
+          ),
+        ],
+        child: ForsaTachApp(appRouter: _appRouter),
+      ),
+    );
+  }
 }
 
 class ForsaTachApp extends StatefulWidget {
@@ -104,10 +141,19 @@ class ForsaTachApp extends StatefulWidget {
 }
 
 class _ForsaTachAppState extends State<ForsaTachApp> {
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
     initFirebaseMessaging();
+    PushNotifications.init();
+  }
+
+  void showWebNotification(String title, String body) {
+    if (html.Notification.permission == 'granted') {
+      html.Notification(title, body: body);
+    }
   }
 
   void initFirebaseMessaging() async {
@@ -117,28 +163,36 @@ class _ForsaTachAppState extends State<ForsaTachApp> {
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       String? token = await messaging.getToken(
-        vapidKey:
-            'BHzVJj-ZAA8aAJh6Bjr0CY1aCYQ7ZJ-MOIOq-TuzL-mD8IHuPDqeDNJDTGP9ni-7zQXFSRWiBFY7ry3KE-QPjAQ',
+        vapidKey: dotenv.env['VAPID_KEY']!,
       );
       print('✅ FCM Token: $token');
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        print('🔔 Foreground message: ${message.notification?.title}');
         final notification = message.notification;
         if (notification != null && mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            showDialog(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: Text(notification.title ?? "No Title"),
-                content: Text(notification.body ?? "No Body"),
-              ),
-            );
-          });
+          showWebNotification(
+              notification.title ?? '', notification.body ?? '');
+
+          // WidgetsBinding.instance.addPostFrameCallback((_) {
+          //   final context = navigatorKey.currentState?.overlay?.context;
+          //   if (context != null) {
+          //     showDialog(
+          //       context: context,
+          //       builder: (_) => AlertDialog(
+          //         title: Text(notification.title ?? "No Title"),
+          //         content: Text(notification.body ?? "No Body"),
+          //         actions: [
+          //           TextButton(
+          //             onPressed: () => Navigator.of(context).pop(),
+          //             child: const Text('Close'),
+          //           ),
+          //         ],
+          //       ),
+          //     );
+          //   }
+          // });
         }
       });
-    } else {
-      print('❌ User declined notification permission');
     }
   }
 
@@ -146,6 +200,7 @@ class _ForsaTachAppState extends State<ForsaTachApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       onGenerateRoute: widget.appRouter.generateRoute,
     );
   }

@@ -27,7 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLargeScreen = MediaQuery.of(context).size.width >= 900;
+    final isLargeScreen = MediaQuery.of(context).size.width >= 1050;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -39,7 +39,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 selectedIndex: selectedIndex,
                 onItemSelected: (index) {
                   setState(() => selectedIndex = index);
-                  Navigator.pop(context); // إغلاق الدروار بعد الاختيار
+                  Navigator.pop(context);
                 },
               ),
             ),

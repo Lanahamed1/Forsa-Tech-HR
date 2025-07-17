@@ -29,14 +29,21 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   bloc: ^9.0.0
+  cloud_firestore: ^5.6.10
   cupertino_icons: ^1.0.8
   dio: ^5.8.0+1
+  dropdown_search: ^6.0.2
   equatable: ^2.0.7
+  file_picker: ^10.2.0
+  firebase_auth: ^5.6.1
   firebase_core: ^3.14.0
-  firebase_messaging: ^15.2.7
+  firebase_messaging: ^15.2.8
   flutter:
     sdk: flutter
   flutter_bloc: ^9.0.0
+  flutter_dotenv: ^5.2.1
+  flutter_local_notifications: ^19.3.0
+  fluttertoast: ^8.2.12
   google_fonts: ^6.2.1
   google_sign_in: ^6.3.0
   googleapis: ^14.0.0
@@ -63,6 +70,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/ #   - images/a_dot_ham.jpeg
+    - assets/.env
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
   # For details regarding adding assets from package dependencies, see

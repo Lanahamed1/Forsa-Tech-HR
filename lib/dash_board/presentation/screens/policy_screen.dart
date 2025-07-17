@@ -6,18 +6,15 @@ import 'package:forsatech/dash_board/data/model/policy_model.dart';
 import 'package:forsatech/dash_board/data/repository/policy_repository.dart';
 import 'package:forsatech/dash_board/data/web_services/policy_web_services.dart';
 
-class PoliciesScreen extends StatelessWidget {
+class PoliciesScreen extends StatefulWidget {
   const PoliciesScreen({super.key});
 
-  void showSnackBar(BuildContext context, String message,
-      {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
-    );
-  }
+  @override
+  State<PoliciesScreen> createState() => _PoliciesScreenState();
+}
+
+class _PoliciesScreenState extends State<PoliciesScreen> {
+  int? selectedPlanId;
 
   @override
   Widget build(BuildContext context) {
@@ -39,100 +36,146 @@ class PoliciesScreen extends StatelessWidget {
             child: const Text(
               "Policies",
               style: TextStyle(
-                      fontSize: 25,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+                  fontSize: 25,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
             ),
           ),
         ),
         body: BlocConsumer<PoliciesCubit, PoliciesState>(
-          listener: (context, state) {
-            if (state is PoliciesSubscribed) {
-              showSnackBar(context, '✅ Subscription successful');
-            } else if (state is PoliciesPending) {
-              showSnackBar(context, '⏳ Your request is pending approval');
-            } else if (state is PoliciesError) {
-              showSnackBar(context, '❌ ${state.message}', isError: true);
-            }
-          },
+          listener: (context, state) {},
           builder: (context, state) {
             if (state is PoliciesLoading) {
               return const Center(child: CircularProgressIndicator());
             } else if (state is PoliciesLoaded) {
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  double screenWidth = constraints.maxWidth;
-                  int columns = 1;
-                  double aspectRatio = 18 / 10;
+              final policies = state.policies;
 
-                  if (screenWidth >= 1200) {
-                    columns = 2;
-                    aspectRatio = 16 / 9;
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        crossAxisSpacing: 20,
-                        mainAxisSpacing: 20,
-                        childAspectRatio: aspectRatio,
+              for (var p in policies) {
+                print(
+                    'Policy: ${p.name}, isActiveForCompany: ${p.isActiveForCompany}');
+              }
+
+              final unsubscribedPlans =
+                  policies.where((p) => !p.isActiveForCompany).toList();
+
+              print(
+                  'Unsubscribed plans: ${unsubscribedPlans.map((e) => e.name).toList()}');
+
+              if (selectedPlanId != null &&
+                  !unsubscribedPlans.any((plan) => plan.id == selectedPlanId)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  setState(() {
+                    selectedPlanId = null;
+                  });
+                });
+              }
+
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Change Subscription Plan:",
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                      itemCount: 2,
-                      itemBuilder: (context, index) {
-                        final isFree = index == 0;
-                        final policy = isFree
-                            ? state.policy.freePolicy
-                            : state.policy.premiumPolicy;
+                      child: DropdownButton<int>(
+                        value: selectedPlanId,
+                        hint: const Text("Select a plan"),
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        items: unsubscribedPlans
+                            .map((p) => DropdownMenuItem<int>(
+                                  value: p.id,
+                                  child: Text(p.name),
+                                ))
+                            .toList(),
+                        onChanged: (value) async {
+                          if (value != null) {
+                            setState(() {
+                              selectedPlanId = value;
+                            });
 
-                        return _buildPolicyCard(
-                          context,
-                          title: isFree ? "Free Plan" : "Premium Plan",
-                          icon: isFree
-                              ? Icons.free_breakfast
-                              : Icons.workspace_premium,
-                          policy: policy,
-                          onSubscribe: () {
-                            context.read<PoliciesCubit>().subscribe(policy.id);
-                          },
-                        );
-                      },
+                            await context
+                                .read<PoliciesCubit>()
+                                .subscribe(value);
+
+                            await context.read<PoliciesCubit>().loadPolicies();
+
+                            await Future.delayed(
+                                const Duration(milliseconds: 100));
+
+                            setState(() {
+                              selectedPlanId = null;
+                            });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    "📩 Subscription request has been sent"),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                      ),
                     ),
-                  );
-                },
-              );
-            } else if (state is PoliciesPending) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.hourglass_top, size: 64, color: Colors.orange),
-                    SizedBox(height: 12),
-                    Text(
-                      "⏳ Your request is pending approval.",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    const SizedBox(height: 24),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          double screenWidth = constraints.maxWidth;
+                          int columns = screenWidth >= 1200 ? 2 : 1;
+                          double aspectRatio =
+                              screenWidth >= 1200 ? 16 / 9 : 18 / 10;
+
+                          return GridView.builder(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: columns,
+                              crossAxisSpacing: 20,
+                              mainAxisSpacing: 20,
+                              childAspectRatio: aspectRatio,
+                            ),
+                            itemCount: policies.length,
+                            itemBuilder: (context, index) {
+                              final policy = policies[index];
+                              final bool isSubscribed =
+                                  policy.isActiveForCompany;
+
+                              // ✅ علامة الصح تظهر فقط إذا كانت الخطة مفعّلة من السيرفر
+                              bool showSubscribedBadge = isSubscribed;
+
+                              return _buildPolicyCard(
+                                context,
+                                title: policy.name,
+                                icon: policy.name.toLowerCase() == 'free'
+                                    ? Icons.free_breakfast
+                                    : Icons.workspace_premium,
+                                policy: policy,
+                                showSubscribeButton: false,
+                                showSubscribedBadge: showSubscribedBadge,
+                                onSubscribe: () {},
+                              );
+                            },
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
               );
-            } else if (state is PoliciesSubscribed) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, size: 64, color: Colors.green),
-                    SizedBox(height: 12),
-                    Text(
-                      "🎉 Subscription successful!",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              );
-            } else if (state is PoliciesError) {
+            }
+
+            if (state is PoliciesLoadError) {
               return Center(
                 child: Text(
                   "⚠️ Error: ${state.message}",
@@ -140,6 +183,7 @@ class PoliciesScreen extends StatelessWidget {
                 ),
               );
             }
+
             return const SizedBox();
           },
         ),
@@ -153,17 +197,15 @@ class PoliciesScreen extends StatelessWidget {
     required IconData icon,
     required PolicyDetail policy,
     required VoidCallback onSubscribe,
+    bool showSubscribeButton = true,
+    bool showSubscribedBadge = false,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.all(18),
@@ -183,6 +225,8 @@ class PoliciesScreen extends StatelessWidget {
                       ),
                 ),
               ),
+              if (showSubscribedBadge)
+                const Icon(Icons.check_circle, color: Colors.green, size: 28),
             ],
           ),
           const SizedBox(height: 20),
@@ -204,41 +248,6 @@ class PoliciesScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          Center(
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(18),
-              child: InkWell(
-                onTap: onSubscribe,
-                borderRadius: BorderRadius.circular(18),
-                child: Ink(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
-                    ),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.subscriptions_outlined, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(
-                        "Subscribe Now",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -246,28 +255,20 @@ class PoliciesScreen extends StatelessWidget {
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF6366F1)),
+          Icon(icon, size: 20, color: Colors.grey[600]),
           const SizedBox(width: 8),
+          Text(
+            "$label: ",
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 1.6,
-                  color: Colors.black87,
-                ),
-                children: [
-                  TextSpan(
-                    text: "$label: ",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  TextSpan(text: value),
-                ],
-              ),
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

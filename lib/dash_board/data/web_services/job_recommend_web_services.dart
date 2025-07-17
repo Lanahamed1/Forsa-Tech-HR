@@ -1,12 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:forsatech/constants/strings.dart';
-import 'package:forsatech/dash_board/data/model/job_model.dart';
+import 'package:forsatech/dash_board/data/model/job_recommend_model.dart';
 import 'package:forsatech/token_manager.dart';
 
-class JobsWebService {
+class JobsRecommendWebService {
   late Dio dio;
 
-  JobsWebService() {
+  // ignore: non_constant_identifier_names
+  JobsRecommendWebService.JobsRecommendWebService() {
     BaseOptions options = BaseOptions(
       baseUrl: baseUrl,
       receiveDataWhenStatusError: true,
@@ -15,7 +16,6 @@ class JobsWebService {
     );
     dio = Dio(options);
   }
-
   Future<List<JobRecommendModel>> getJobs() async {
     try {
       String? token = await TokenManager.getAccessToken();
@@ -31,14 +31,22 @@ class JobsWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
 
       final data = response.data as List;
-      return data.map((jobJson) => JobRecommendModel.fromJson(jobJson)).toList();
-    } catch (e) {
-      throw Exception('Failed to load jobs: $e');
-    }
+      return data
+          .map((jobJson) => JobRecommendModel.fromJson(jobJson))
+          .toList();
+    }on DioException catch (e) {
+  if (e.response?.statusCode == 403) {
+    throw "Your attempts have been exhausted. Please subscribe to one of the policies.";
+  } else {
+    throw "Failed to load jobs: ${e.message}";
   }
+} catch (e) {
+  throw "An error occurred: ${e.toString().replaceAll('Exception: ', '')}";
 }
+  }}

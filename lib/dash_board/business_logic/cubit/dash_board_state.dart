@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:forsatech/dash_board/data/model/announcement_model.dart';
+import 'package:forsatech/dash_board/data/model/applicant_model.dart';
+import 'package:forsatech/dash_board/data/model/appointment_model.dart';
 import 'package:forsatech/dash_board/data/model/candidate_filter_model.dart';
-import 'package:forsatech/dash_board/data/model/job_model.dart';
+import 'package:forsatech/dash_board/data/model/interview_model.dart';
+import 'package:forsatech/dash_board/data/model/job_recommend_model.dart';
 import 'package:forsatech/dash_board/data/model/job_opportunity_details_model.dart';
-import 'package:forsatech/dash_board/data/model/model.dart';
+import 'package:forsatech/dash_board/data/model/opportunity_model.dart';
 import 'package:equatable/equatable.dart';
 import 'package:forsatech/dash_board/data/model/policy_model.dart';
+import 'package:forsatech/dash_board/data/model/profile_model.dart';
+// ==========================================================
+///             Opportunity State
+///
 
 abstract class OpportunityState {}
 
@@ -24,6 +31,8 @@ class OpportunityError extends OpportunityState {
 }
 
 //===================================================================
+///                     Appointment State
+///
 
 class AppointmentState {
   final String title;
@@ -73,7 +82,41 @@ class AppointmentState {
   }
 }
 
-// =================================================
+// ===================================================
+///                   JobAppoint State
+///
+
+class JobAppointState {
+  final List<JobAppointment> jobs;
+  final JobAppointment? selectedJob;
+  final bool isLoading;
+  final String? errorMessage;
+
+  JobAppointState({
+    this.jobs = const [],
+    this.selectedJob,
+    this.isLoading = false,
+    this.errorMessage,
+  });
+
+  JobAppointState copyWith({
+    List<JobAppointment>? jobs,
+    JobAppointment? selectedJob,
+    bool? isLoading,
+    String? errorMessage,
+  }) {
+    return JobAppointState(
+      jobs: jobs ?? this.jobs,
+      selectedJob: selectedJob ?? this.selectedJob,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage,
+    );
+  }
+}
+
+///===================================================================================
+///            Job Opportunity Details State
+///
 
 abstract class JobOpportunityDetailsState extends Equatable {
   const JobOpportunityDetailsState();
@@ -87,7 +130,7 @@ class JobOpportunityDetailsInitial extends JobOpportunityDetailsState {}
 class JobOpportunityDetailsLoading extends JobOpportunityDetailsState {}
 
 class JobOpportunityDetailsLoaded extends JobOpportunityDetailsState {
-  final JobOpportunityDetails opportunity;
+  final JobOpportunityDetailsModel opportunity;
 
   const JobOpportunityDetailsLoaded(this.opportunity);
 
@@ -103,9 +146,16 @@ class JobOpportunityDetailsError extends JobOpportunityDetailsState {
   @override
   List<Object> get props => [message];
 }
-// =====================================================4
 
-abstract class ApplicantState {}
+// =====================================================
+///                Applicant State
+///
+
+class ApplicantState {
+  final String? applicantStatus;
+
+  ApplicantState({this.applicantStatus});
+}
 
 class ApplicantInitial extends ApplicantState {}
 
@@ -113,38 +163,51 @@ class ApplicantLoading extends ApplicantState {}
 
 class ApplicantLoaded extends ApplicantState {
   final ApplicantModel applicant;
-  ApplicantLoaded(this.applicant);
+  @override
+  // ignore: overridden_fields
+  final String? applicantStatus;
+
+  ApplicantLoaded(this.applicant, {this.applicantStatus})
+      : super(applicantStatus: applicantStatus);
 }
 
 class ApplicantError extends ApplicantState {
   final String message;
+
   ApplicantError(this.message);
 }
 
 // =========================================
-abstract class CandidateState {}
+///
+///          Candidate Filter State
+///
 
-class CandidateInitial extends CandidateState {}
+abstract class CandidateFilterState {}
 
-class CandidateLoading extends CandidateState {}
+class CandidateInitial extends CandidateFilterState {}
 
-class CandidateLoaded extends CandidateState {
-  final List<CandidateModel> candidates;
-  CandidateLoaded(this.candidates);
+class CandidateLoading extends CandidateFilterState {}
+
+class CandidateLoaded extends CandidateFilterState {
+  final List<CandidateFilterModel> candidates;
+  final JobModel job;
+
+  CandidateLoaded(this.candidates, this.job);
 }
 
-class JobOpportunitiesLoaded extends CandidateState {
+class JobOpportunitiesLoaded extends CandidateFilterState {
   final List<JobModel> jobOpportunities;
   JobOpportunitiesLoaded(this.jobOpportunities);
 }
 
-class CandidateError extends CandidateState {
+class CandidateError extends CandidateFilterState {
   final String message;
   CandidateError(this.message);
 }
 
-///////////////////////////////////////////////////////////
-///import 'package:equatable/equatable.dart';
+///===================================================================
+///        Announcement State
+///
 
 abstract class AnnouncementState extends Equatable {
   @override
@@ -172,75 +235,96 @@ class AnnouncementError extends AnnouncementState {
   @override
   List<Object?> get props => [message];
 }
+//======================================================================
+///               Policies State
+///
 
-////////////////////////////////////////////////////////////////
-///// cubit/policy_state.dart
 abstract class PoliciesState {}
-
-class PoliciesPending extends PoliciesState {}
 
 class PoliciesInitial extends PoliciesState {}
 
 class PoliciesLoading extends PoliciesState {}
 
 class PoliciesLoaded extends PoliciesState {
-  final PolicyModel policy;
-  PoliciesLoaded(this.policy);
+  final List<PolicyDetail> policies;
+
+  PoliciesLoaded(this.policies);
 }
+
+class PoliciesPending extends PoliciesState {}
 
 class PoliciesSubscribed extends PoliciesState {}
 
 class PoliciesError extends PoliciesState {
   final String message;
+
   PoliciesError(this.message);
 }
 
-/////////////////////////////////////////////////////////////////
+// حالة خاصة لأخطاء التحميل فقط
+class PoliciesLoadError extends PoliciesError {
+  PoliciesLoadError(String message) : super(message);
+}
+
+///========================================================
 ///
-///
-///
+///                 Jobs Recommend State
 
-abstract class JobsState {}
+abstract class JobsRecommendState {}
 
-class JobsInitial extends JobsState {}
+class JobsInitial extends JobsRecommendState {}
 
-class JobsLoading extends JobsState {}
+class JobsLoading extends JobsRecommendState {}
 
-class JobsLoaded extends JobsState {
+class JobsLoaded extends JobsRecommendState {
   final List<JobRecommendModel> jobs;
   JobsLoaded(this.jobs);
 }
 
-class JobsError extends JobsState {
+class JobsError extends JobsRecommendState {
   final String message;
   JobsError(this.message);
 }
 
-/////////////////////////////////////////////////
-class JobAppointState {
-  final List<JobAppont> jobs;
-  final JobAppont? selectedJob;
-  final bool isLoading;
-  final String? errorMessage;
+///======================================
+///
+///            Interview
 
-  JobAppointState({
-    this.jobs = const [],
-    this.selectedJob,
-    this.isLoading = false,
-    this.errorMessage,
-  });
+abstract class InterviewState {}
 
-  JobAppointState copyWith({
-    List<JobAppont>? jobs,
-    JobAppont? selectedJob,
-    bool? isLoading,
-    String? errorMessage,
-  }) {
-    return JobAppointState(
-      jobs: jobs ?? this.jobs,
-      selectedJob: selectedJob ?? this.selectedJob,
-      isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage,
-    );
-  }
+class InterviewInitial extends InterviewState {}
+
+class InterviewLoading extends InterviewState {}
+
+class InterviewLoaded extends InterviewState {
+  final List<Interview> interviews;
+
+  InterviewLoaded(this.interviews);
+}
+
+class InterviewError extends InterviewState {
+  final String message;
+
+  InterviewError(this.message);
+}
+
+///=====================================================
+///
+///
+///               Company Profile State
+///
+abstract class CompanyState {}
+
+class CompanyInitial extends CompanyState {}
+
+class CompanyLoading extends CompanyState {}
+
+class CompanyLoaded extends CompanyState {
+  final CompanyProfile profile;
+  CompanyLoaded(this.profile);
+}
+
+class CompanyError extends CompanyState {
+  final String message;
+  CompanyError(this.message);
 }

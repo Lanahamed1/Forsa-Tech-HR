@@ -5,7 +5,10 @@ class JobRecommendModel {
   final String location;
   final String salary;
   final String experience;
-  final String status; // ✅ أضف الحالة هنا
+  final String status; 
+  final DateTime? applicationDeadline;
+  final DateTime? postingDate;
+
   final List<Applicant> topApplicants;
 
   JobRecommendModel({
@@ -15,7 +18,9 @@ class JobRecommendModel {
     required this.location,
     required this.salary,
     required this.experience,
-    required this.status, // ✅ الحالة
+    required this.status,
+    this.postingDate,
+    this.applicationDeadline,
     required this.topApplicants,
   });
 
@@ -27,11 +32,29 @@ class JobRecommendModel {
       location: json['location'],
       salary: json['salary_range'],
       experience: json['experience_level'],
-      status: json['opportunity_status'] ?? '', // ✅ قراءة الحالة من الـ JSON
+      status: json['opportunity_status'] ?? '',
+      postingDate: json['posting_date'] != null
+          ? DateTime.tryParse(json['posting_date'])
+          : null,
+      applicationDeadline: json['application_deadline'] != null
+          ? DateTime.tryParse(json['application_deadline'])
+          : null,
       topApplicants: (json['recommendations'] as List)
           .map((a) => Applicant.fromJson(a))
           .toList(),
     );
+  }
+  String getStatus() {
+    final now = DateTime.now();
+
+    if (postingDate != null && now.isBefore(postingDate!)) {
+      return 'Pending';
+    } else if (applicationDeadline != null &&
+        now.isAfter(applicationDeadline!)) {
+      return 'Closed';
+    } else {
+      return 'Open';
+    }
   }
 }
 

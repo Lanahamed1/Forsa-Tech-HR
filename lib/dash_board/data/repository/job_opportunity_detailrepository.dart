@@ -6,27 +6,11 @@ class JobOpportunityDetailsRepository {
 
   JobOpportunityDetailsRepository({required this.webService});
 
-  Future<JobOpportunityDetails> getOpportunityDetails(int id) {
+  Future<JobOpportunityDetailsModel> getOpportunityDetails(int id) {
     return webService.fetchOpportunityDetails(id);
   }
-Future<void> updateApplicantStatus(int applicantId, String status) {
-  return webService.updateApplicantStatus(applicantId, status);
-}
 
-}
-
-
-
-
-// ====================================================================?=
-class ApplicantRepository {
-  final ApplicantWebService webService;
-
-  ApplicantRepository(this.webService);
-
-  Future<ApplicantModel> getApplicantProfile(String username) {
-    return webService.fetchUserProfile(username);
+  Future<void> updateApplicantStatus(int applicantId, String status) {
+    return webService.updateApplicantStatus(applicantId, status);
   }
 }
-
-

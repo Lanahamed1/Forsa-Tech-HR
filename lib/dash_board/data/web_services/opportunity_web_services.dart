@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:forsatech/constants/strings.dart';
-import 'package:forsatech/dash_board/data/model/model.dart';
+import 'package:forsatech/dash_board/data/model/opportunity_model.dart';
 import 'package:forsatech/token_manager.dart';
 
 class OpportunityWebService {
@@ -32,6 +32,7 @@ class OpportunityWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
@@ -69,16 +70,17 @@ class OpportunityWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
 
-      debugPrint("Response status: ${response.statusCode}");
-      debugPrint("Response data: ${response.data}");
+      // debugPrint("Response status: ${response.statusCode}");
+      // debugPrint("Response data: ${response.data}");
     } on DioException catch (e) {
-      debugPrint("DioException: ${e.message}");
-      debugPrint("Status: ${e.response?.statusCode}");
-      debugPrint("Response: ${e.response?.data}");
+      // debugPrint("DioException: ${e.message}");
+      // debugPrint("Status: ${e.response?.statusCode}");
+      // debugPrint("Response: ${e.response?.data}");
       rethrow;
     } catch (e) {
       debugPrint('Error in addOpportunity: $e');
@@ -106,6 +108,7 @@ class OpportunityWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
@@ -132,6 +135,7 @@ class OpportunityWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
@@ -158,9 +162,10 @@ class OpportunityWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
-      ); // عدل المسار حسب API الخاص بك
+      );
       if (response.statusCode == 200 && response.data is List) {
         return List<String>.from(response.data);
       } else {

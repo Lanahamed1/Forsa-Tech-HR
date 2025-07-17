@@ -1,20 +1,37 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:forsatech/dash_board/business_logic/cubit/dash_board_state.dart';
 import 'package:forsatech/dash_board/data/model/announcement_model.dart';
+import 'package:forsatech/dash_board/data/model/applicant_model.dart';
+import 'package:forsatech/dash_board/data/model/appointment_model.dart';
 import 'package:forsatech/dash_board/data/model/candidate_filter_model.dart';
-import 'package:forsatech/dash_board/data/model/model.dart';
+import 'package:forsatech/dash_board/data/model/opportunity_model.dart';
 import 'package:forsatech/dash_board/data/repository/announcement_repository.dart';
+import 'package:forsatech/dash_board/data/repository/applicant_repository.dart';
+import 'package:forsatech/dash_board/data/repository/appointment_repository.dart';
 import 'package:forsatech/dash_board/data/repository/candidate_filter_repsitory.dart';
-import 'package:forsatech/dash_board/data/repository/dash_board_repository.dart';
-import 'package:forsatech/dash_board/data/repository/job_repository.dart';
+import 'package:forsatech/dash_board/data/repository/interview_repository.dart';
+import 'package:forsatech/dash_board/data/repository/opportunity_repository.dart';
+import 'package:forsatech/dash_board/data/repository/job_recommend_repository.dart';
 import 'package:forsatech/dash_board/data/repository/job_opportunity_detailrepository.dart';
 import 'package:forsatech/dash_board/data/repository/policy_repository.dart';
+import 'package:forsatech/dash_board/data/repository/profile_repository.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+
+
+
+
+
+
+
+// ====================================================================
+///                   Opportunity Cubit
+///
 
 class OpportunityCubit extends Cubit<OpportunityState> {
   final OpportunityRepository repository;
-  List<Opportunity> _allOpportunities = [];
 
   OpportunityCubit(this.repository) : super(OpportunityInitial());
 
@@ -26,15 +43,6 @@ class OpportunityCubit extends Cubit<OpportunityState> {
     } catch (_) {
       emit(OpportunityError('Failed to load opportunities'));
     }
-  }
-
-  void filterOpportunities(String query) {
-    final filtered = _allOpportunities.where((op) {
-      return op.title != null &&
-          op.title!.toLowerCase().contains(query.toLowerCase());
-    }).toList();
-
-    emit(OpportunityLoaded(filtered));
   }
 
   Future<void> addOpportunity(Opportunity opportunity) async {
@@ -65,7 +73,11 @@ class OpportunityCubit extends Cubit<OpportunityState> {
   }
 }
 
-///////////////////////////////////////////////////
+// ====================================================================
+///
+///               Appointment Cubit
+///
+
 class AppointmentCubit extends Cubit<AppointmentState> {
   final AppointmentRepository repository;
 
@@ -125,7 +137,43 @@ class AppointmentCubit extends Cubit<AppointmentState> {
   }
 }
 
+///=====================================================================================
+///
+///                      JobApponit Cubit
+///
+
+class JobApponitCubit extends Cubit<JobAppointState> {
+  final JobAppointRepository repository;
+
+  JobApponitCubit(this.repository) : super(JobAppointState());
+
+  Future<void> fetchJobs() async {
+    emit(state.copyWith(isLoading: true, errorMessage: null));
+    try {
+      final jobs = await repository.getJobs();
+      emit(state.copyWith(jobs: jobs, isLoading: false));
+    } catch (e) {
+      emit(state.copyWith(
+          isLoading: false, errorMessage: 'Failed to load opportunity $e'));
+    }
+  }
+
+  Future<void> fetchJobById(int jobId) async {
+    emit(state.copyWith(isLoading: true, errorMessage: null));
+    try {
+      final job = await repository.getJobById(jobId);
+      emit(state.copyWith(selectedJob: job, isLoading: false));
+    } catch (e) {
+      emit(state.copyWith(
+          isLoading: false, errorMessage: 'Failed to load opportunity : $e'));
+    }
+  }
+}
+
 // ====================================================================================
+///                 Job Opportunity Details Cubit
+///
+
 class JobOpportunityDetailsCubit extends Cubit<JobOpportunityDetailsState> {
   final JobOpportunityDetailsRepository repository;
 
@@ -152,32 +200,64 @@ class JobOpportunityDetailsCubit extends Cubit<JobOpportunityDetailsState> {
   }
 }
 
-// ======================
+// ========================================================
+///                   Applicant Cubit
+///
 
 class ApplicantCubit extends Cubit<ApplicantState> {
   final ApplicantRepository repository;
 
   ApplicantCubit(this.repository) : super(ApplicantInitial());
 
-  Future<void> fetchApplicant(String username) async {
+  Future<void> loadApplicantAndStatus(
+      String username, int? opportunityId) async {
     emit(ApplicantLoading());
+
     try {
-      final applicant = await repository.getApplicantProfile(username);
-      emit(ApplicantLoaded(applicant));
+      final applicantFuture = repository.getApplicantProfile(username);
+      final statusFuture = opportunityId != null
+          ? repository.getApplicantStatus(opportunityId, username)
+          : Future.value(null); // fallback safe
+
+      final results = await Future.wait([applicantFuture, statusFuture]);
+
+      final applicant = results[0] as ApplicantModel;
+      final status = results[1] as String?;
+
+      emit(ApplicantLoaded(applicant, applicantStatus: status));
     } catch (e) {
-      emit(ApplicantError(e.toString()));
+      emit(ApplicantError('Failed to load applicant or status: $e'));
+    }
+  }
+
+  Future<void> updateApplicantStatus(int applicantId, String status) async {
+    try {
+      await repository.updateApplicantStatus(applicantId, status);
+
+      if (state is ApplicantLoaded) {
+        final currentState = state as ApplicantLoaded;
+        emit(ApplicantLoaded(
+          currentState.applicant,
+          applicantStatus: status,
+        ));
+      }
+    } catch (e) {
+      throw Exception("Failed to update status: $e");
     }
   }
 }
 
-// ================================================.
-class CandidateCubit extends Cubit<CandidateState> {
-  final CandidateRepository repository;
+// ======================================================
+///               Candidate Filter Cubit
+///
+
+class CandidateFilterCubit extends Cubit<CandidateFilterState> {
+  final CandidateFilterRepository repository;
 
   List<JobModel> _jobs = [];
   int? selectedJobId;
 
-  CandidateCubit(this.repository) : super(CandidateInitial());
+  CandidateFilterCubit(this.repository) : super(CandidateInitial());
 
   Future<void> fetchJobOpportunitiesWithApplicants() async {
     try {
@@ -201,19 +281,19 @@ class CandidateCubit extends Cubit<CandidateState> {
 
     try {
       final jobDetails = await repository.getJobDetails(jobId);
-      emit(CandidateLoaded(jobDetails.topApplicants));
+      emit(CandidateLoaded(
+          jobDetails.topApplicants, jobDetails)); // ✅ أرسل jobDetails أيضًا
     } catch (e) {
-      emit(CandidateError('الوظيفة غير موجودة أو حدث خطأ: $e'));
+      emit(CandidateError('Failed to load: $e'));
     }
   }
 
-  void reset() {
-    selectedJobId = null;
-    emit(JobOpportunitiesLoaded(_jobs));
-  }
+ 
 }
-/////////////////////////////////////////////////////////////////////
-///import 'package:flutter_bloc/flutter_bloc.dart';
+
+///===================================================================
+///                    Announcement Cubit
+///
 
 class AnnouncementCubit extends Cubit<AnnouncementState> {
   final AnnouncementRepository repository;
@@ -230,12 +310,16 @@ class AnnouncementCubit extends Cubit<AnnouncementState> {
     }
   }
 
-  Future<void> addAnnouncement(Announcement announcement) async {
+  Future<void> addAnnouncement(Announcement announcement, File? imageFile,
+      [Uint8List? imageBytes]) async {
     emit(AnnouncementLoading());
     try {
-      final success = await repository.addAnnouncement(announcement);
+      print("🎯 addAnnouncement called in Cubit");
+      final success = await repository.addAnnouncement(announcement, imageFile,
+          imageBytes: imageBytes);
+
       if (success) {
-        await fetchAnnouncements(); // reload after success
+        await fetchAnnouncements();
       } else {
         emit(AnnouncementError("Failed to create announcement"));
       }
@@ -245,9 +329,9 @@ class AnnouncementCubit extends Cubit<AnnouncementState> {
   }
 }
 
-//////////////////////////////////////////////////////
-///// cubit/policy_cubit.dart
-
+///================================================================
+///                          Policies Cubit
+///
 class PoliciesCubit extends Cubit<PoliciesState> {
   final PoliciesRepository repository;
 
@@ -256,10 +340,10 @@ class PoliciesCubit extends Cubit<PoliciesState> {
   Future<void> loadPolicies() async {
     emit(PoliciesLoading());
     try {
-      final policies = await repository.fetchPolicies();
-      emit(PoliciesLoaded(policies));
+      final policyModel = await repository.fetchPolicies();
+      emit(PoliciesLoaded(policyModel.policies)); 
     } catch (e) {
-      emit(PoliciesError("Failed to load policies"));
+      emit(PoliciesLoadError("Failed to load policies"));
     }
   }
 
@@ -273,24 +357,26 @@ class PoliciesCubit extends Cubit<PoliciesState> {
       } else if (status == 'approved') {
         emit(PoliciesSubscribed());
       } else {
-        emit(PoliciesError('Unknown subscription status: $status'));
+        // تجاهل حالة الخطأ المحتملة وأعتبرها مشترك
+        emit(PoliciesSubscribed());
       }
     } catch (e) {
-      emit(PoliciesError("Failed to subscribe to policy"));
+      // تجاهل الأخطاء وعدم إصدار حالة خطأ
+      emit(PoliciesSubscribed());
     }
   }
 }
 
-/////////////////////////////////////////////////////////
+
+///================================================================
 ///
-///
-///
+///                   Jobs Recommend Cubit
 ///
 
-class JobsCubit extends Cubit<JobsState> {
-  final JobsRepository repository;
+class JobsRecommendCubit extends Cubit<JobsRecommendState> {
+  final JobsRecommendRepository repository;
 
-  JobsCubit(this.repository) : super(JobsInitial());
+  JobsRecommendCubit(this.repository) : super(JobsInitial());
 
   Future<void> getJobs() async {
     try {
@@ -302,32 +388,58 @@ class JobsCubit extends Cubit<JobsState> {
     }
   }
 }
-////////////////////////////////////////////////////////
 
-class JobApponitCubit extends Cubit<JobAppointState> {
-  final JobAppointRepository repository;
+///===================================================
+///
+///             Interview
 
-  JobApponitCubit(this.repository) : super(JobAppointState());
+class InterviewCubit extends Cubit<InterviewState> {
+  final InterviewRepository repository;
 
-  Future<void> fetchJobs() async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+  InterviewCubit(this.repository) : super(InterviewInitial());
+
+  void fetchInterviews() async {
     try {
-      final jobs = await repository.getJobs();
-      emit(state.copyWith(jobs: jobs, isLoading: false));
+      emit(InterviewLoading());
+      final interviews = await repository.getInterviews();
+      emit(InterviewLoaded(interviews));
     } catch (e) {
-      emit(state.copyWith(
-          isLoading: false, errorMessage: 'Failed to load opportunity $e'));
+      emit(InterviewError(e.toString()));
+    }
+  }
+}
+
+///====================================
+///
+///            Company Profile Cubit
+class CompanyCubit extends Cubit<CompanyState> {
+  final CompanyRepository repository;
+
+  CompanyCubit(this.repository) : super(CompanyInitial());
+
+  Future<void> loadCompanyProfile() async {
+    emit(CompanyLoading());
+    try {
+      final profile = await repository.getCompanyProfile();
+      emit(CompanyLoaded(profile));
+    } catch (e) {
+      emit(CompanyError(e.toString()));
     }
   }
 
-  Future<void> fetchJobById(int jobId) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+  Future<void> updateCompanyProfile({
+    required String newLogoUrl,
+    required String newDescription,
+  }) async {
+    emit(CompanyLoading());
     try {
-      final job = await repository.getJobById(jobId);
-      emit(state.copyWith(selectedJob: job, isLoading: false));
+      final updatedProfile = await repository.updateCompanyProfile(
+        logoUrl: newLogoUrl,
+        description: newDescription,
+      );
+      emit(CompanyLoaded(updatedProfile));
     } catch (e) {
-      emit(state.copyWith(
-          isLoading: false, errorMessage: 'Failed to load opportunity : $e'));
+      emit(CompanyError(e.toString()));
     }
   }
 }

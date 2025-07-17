@@ -1,11 +1,11 @@
-class CandidateModel {
+class CandidateFilterModel {
   final int userId;
   final String username;
   final String email;
   final double similarityScore;
   final List<String> skills;
 
-  CandidateModel({
+  CandidateFilterModel({
     required this.userId,
     required this.username,
     required this.email,
@@ -13,9 +13,10 @@ class CandidateModel {
     required this.skills,
   });
 
-  factory CandidateModel.fromJson(Map<String, dynamic> json) {
-    return CandidateModel(
-      userId: json['user_id'] ?? 0,
+  factory CandidateFilterModel.fromJson(Map<String, dynamic> json) {
+    return CandidateFilterModel(
+      // application_id
+      userId: json['application_id'] ?? 0,
       username: json['username'] ?? '',
       email: json['email'] ?? '',
       similarityScore: (json['similarity_score'] ?? 0).toDouble(),
@@ -23,10 +24,11 @@ class CandidateModel {
     );
   }
 }
+
 class JobModel {
   final int id;
   final String title;
-  final List<CandidateModel> topApplicants;
+  final List<CandidateFilterModel> topApplicants;
 
   JobModel({
     required this.id,
@@ -35,16 +37,16 @@ class JobModel {
   });
 
   factory JobModel.fromJson(Map<String, dynamic> json) {
-    List<CandidateModel> applicants = [];
+    List<CandidateFilterModel> applicants = [];
 
     if (json.containsKey('top_applicants') && json['top_applicants'] is List) {
       applicants = (json['top_applicants'] as List)
-          .map((e) => CandidateModel.fromJson(e))
+          .map((e) => CandidateFilterModel.fromJson(e))
           .toList();
     }
 
     return JobModel(
-      id: json['opportunity_id'] ?? json['id'] ?? 0,
+      id: json['opportunity_id'] ?? json['id'] as int,
       title: json['opportunity_name'] ?? '',
       topApplicants: applicants,
     );

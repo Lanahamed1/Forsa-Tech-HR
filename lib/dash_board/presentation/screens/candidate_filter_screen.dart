@@ -11,24 +11,26 @@ class CandidateFilterScreen extends StatefulWidget {
   @override
   State<CandidateFilterScreen> createState() => _CandidateFilterScreenState();
 }
-
 class _CandidateFilterScreenState extends State<CandidateFilterScreen> {
   int? _selectedJobId;
+  List<JobModel> _allJobs = [];
 
   @override
   void initState() {
     super.initState();
-    context.read<CandidateCubit>().fetchJobOpportunitiesWithApplicants();
+    final cubit = context.read<CandidateFilterCubit>();
+    cubit.fetchJobOpportunitiesWithApplicants();
   }
 
   void _onJobChanged(int? jobId) async {
     setState(() => _selectedJobId = jobId);
-    await context.read<CandidateCubit>().selectJob(jobId);
-  }
 
-  void _resetFilters() {
-    setState(() => _selectedJobId = null);
-    context.read<CandidateCubit>().reset();
+    final cubit = context.read<CandidateFilterCubit>();
+    if (jobId == null) {
+      await cubit.fetchJobOpportunitiesWithApplicants();
+    } else {
+      await cubit.selectJob(jobId);
+    }
   }
 
   @override
@@ -36,67 +38,80 @@ class _CandidateFilterScreenState extends State<CandidateFilterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: const IconThemeData(
-            color: Color(0xFF6366F1),
-          ),
-          title: ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ).createShader(bounds),
-            child: const Text(
-              "Job Applicants",
-              style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(
+          color: Color(0xFF6366F1),
+        ),
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: const Text(
+            "Job Applicants",
+            style: TextStyle(
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-          )),
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: BlocBuilder<CandidateCubit, CandidateState>(
+              child: BlocBuilder<CandidateFilterCubit, CandidateFilterState>(
                 builder: (context, state) {
+                  // عندما نستلم الوظائف، نخزنها في _allJobs
                   if (state is JobOpportunitiesLoaded) {
-                    return JobDropdown(
-                      jobOpportunities: state.jobOpportunities,
-                      selectedJobId: _selectedJobId,
-                      onChanged: _onJobChanged,
-                    );
-                  } else if (state is CandidateError) {
-                    return Text("Error: ${state.message}");
+                    _allJobs = state.jobOpportunities.reversed.toList();
                   }
-                  return const LinearProgressIndicator();
+
+                  if (_allJobs.isEmpty) {
+                    return const LinearProgressIndicator();
+                  }
+
+                  return JobDropdown(
+                    jobOpportunities: _allJobs,
+                    selectedJobId: _selectedJobId,
+                    onChanged: _onJobChanged,
+                  );
                 },
               ),
             ),
             const SizedBox(height: 10),
             Expanded(
-              child: BlocBuilder<CandidateCubit, CandidateState>(
+              child: BlocBuilder<CandidateFilterCubit, CandidateFilterState>(
                 builder: (context, state) {
+                  if (_selectedJobId == null) {
+                    return const Center(
+                      child: Text(
+                        'Select a Job',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  }
+
                   if (state is CandidateLoading) {
                     return const Center(child: CircularProgressIndicator());
                   } else if (state is CandidateError) {
                     return Center(child: Text('Error: ${state.message}'));
                   } else if (state is CandidateLoaded) {
                     if (state.candidates.isEmpty) {
-                      return const Center(
-                          child: Text('No applicants for this job'));
+                      return const Center(child: Text('No applicants for this job'));
                     }
-                    return CandidatesList(candidates: state.candidates);
-                  } else if (state is JobOpportunitiesLoaded &&
-                      _selectedJobId == null) {
-                    return const Center(
-                        child: Text('Please select a job to view applicants'));
+                    return CandidatesList(
+                      candidates: state.candidates,
+                      jobModel: state.job,
+                    );
                   }
+
                   return const SizedBox.shrink();
                 },
               ),
@@ -104,29 +119,13 @@ class _CandidateFilterScreenState extends State<CandidateFilterScreen> {
           ],
         ),
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: FloatingActionButton.extended(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          onPressed: _resetFilters,
-          icon: const Icon(Icons.refresh, color: Colors.white),
-          label: const Text(
-            "Reset",
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      ),
     );
   }
 }
+
+///////////////////////////////////////////////////////
+/// Dropdown widget to select a job
+///////////////////////////////////////////////////////
 
 class JobDropdown extends StatelessWidget {
   final List<JobModel> jobOpportunities;
@@ -142,21 +141,15 @@ class JobDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<int>(
+    return DropdownButtonFormField<int?>(
       value: selectedJobId,
       isExpanded: true,
-      items: [
-        const DropdownMenuItem<int>(
-          value: null,
-          child: Text("Select Job"),
+      items: jobOpportunities.map(
+        (job) => DropdownMenuItem<int?>(
+          value: job.id,
+          child: Text(job.title),
         ),
-        ...jobOpportunities.map(
-          (job) => DropdownMenuItem<int>(
-            value: job.id,
-            child: Text(job.title),
-          ),
-        ),
-      ],
+      ).toList(),
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: 'Jobs',
@@ -172,10 +165,19 @@ class JobDropdown extends StatelessWidget {
   }
 }
 
-class CandidatesList extends StatelessWidget {
-  final List<CandidateModel> candidates;
+///////////////////////////////////////////////////////
+/// Candidates List widget
+///////////////////////////////////////////////////////
 
-  const CandidatesList({super.key, required this.candidates});
+class CandidatesList extends StatelessWidget {
+  final List<CandidateFilterModel> candidates;
+  final JobModel jobModel;
+
+  const CandidatesList({
+    super.key,
+    required this.candidates,
+    required this.jobModel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -185,16 +187,28 @@ class CandidatesList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final candidate = candidates[index];
-        return CandidateCard(candidate: candidate);
+        return CandidateCard(
+          candidate: candidate,
+          jobModel: jobModel,
+        );
       },
     );
   }
 }
 
-class CandidateCard extends StatelessWidget {
-  final CandidateModel candidate;
+///////////////////////////////////////////////////////
+/// Candidate Card widget
+///////////////////////////////////////////////////////
 
-  const CandidateCard({super.key, required this.candidate});
+class CandidateCard extends StatelessWidget {
+  final CandidateFilterModel candidate;
+  final JobModel? jobModel;
+
+  const CandidateCard({
+    super.key,
+    required this.candidate,
+    this.jobModel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +225,6 @@ class CandidateCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Similarity Score
             Row(
               children: [
                 const Icon(Icons.bar_chart_rounded,
@@ -222,23 +235,19 @@ class CandidateCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: Color(0xFF4F46E5),
+                    color: Color(0xFF6366F1),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
             const Divider(),
-
-            /// Avatar + Name + Email
             Row(
               children: [
-                CircleAvatar(
+                const CircleAvatar(
                   radius: 30,
-                  backgroundColor: const Color(0xFF6366F1),
-                  child:
-                      const Icon(Icons.person, size: 30, color: Colors.white),
+                  backgroundColor: Color(0xFF6366F1),
+                  child: Icon(Icons.person, size: 30, color: Colors.white),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -273,10 +282,7 @@ class CandidateCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            /// Skills Section
             const Text(
               'Skills',
               style: TextStyle(
@@ -317,10 +323,7 @@ class CandidateCard extends StatelessWidget {
                 );
               }).toList(),
             ),
-
             const SizedBox(height: 20),
-
-            /// Show Details Button
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -330,7 +333,9 @@ class CandidateCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) => ApplicantScreen(
+                          id: candidate.userId,
                           username: candidate.username,
+                          opportunityId: jobModel?.id,
                         ),
                       ),
                     );

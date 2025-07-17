@@ -7,6 +7,19 @@ import 'package:forsatech/dash_board/data/repository/job_opportunity_detailrepos
 import 'package:forsatech/dash_board/data/web_services/job_opportunity_details_web_service.dart';
 import 'package:forsatech/dash_board/presentation/screens/applicant_details_screen.dart';
 
+enum ApplicantStatus { accept, reject, pending }
+
+String statusToString(ApplicantStatus status) {
+  switch (status) {
+    case ApplicantStatus.accept:
+      return 'accepted';
+    case ApplicantStatus.reject:
+      return 'rejected';
+    case ApplicantStatus.pending:
+      return 'pending';
+  }
+}
+
 class JobOpportunityDetailsScreen extends StatelessWidget {
   final int opportunityId;
 
@@ -39,7 +52,7 @@ class JobOpportunityDetailsScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 25,
                 fontWeight: FontWeight.bold,
-                color: Colors.white, // Overridden by ShaderMask
+                color: Colors.white,
               ),
             ),
           ),
@@ -84,30 +97,36 @@ class JobOpportunityDetailsScreen extends StatelessWidget {
                       ...applicants.map(
                         (applicant) => ApplicantCard(
                           applicant: applicant,
+                          jobDetail: jobDetails,
                           onDecision: (status) async {
                             final cubit =
                                 context.read<JobOpportunityDetailsCubit>();
                             try {
                               await cubit.updateApplicantStatus(
-                                  applicant.id!, status);
+                                  applicant.id, statusToString(status));
                               await cubit.fetchOpportunity(opportunityId);
+
+                              if (!context.mounted) return;
+
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    status == 'accept'
+                                    status == ApplicantStatus.accept
                                         ? 'Applicant has been accepted'
                                         : 'Applicant has been rejected',
                                   ),
-                                  backgroundColor: status == 'accept'
-                                      ? Colors.green
-                                      : Colors.redAccent,
+                                  backgroundColor:
+                                      status == ApplicantStatus.accept
+                                          ? Colors.green
+                                          : Colors.redAccent,
                                 ),
                               );
                             } catch (e) {
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content:
-                                      Text('Failed to update applicant status'),
+                                SnackBar(
+                                  content: Text(
+                                      'Failed to update applicant status: $e'),
                                   backgroundColor: Colors.red,
                                 ),
                               );
@@ -135,10 +154,16 @@ class JobOpportunityDetailsScreen extends StatelessWidget {
   }
 }
 
-class JobCard extends StatelessWidget {
-  final JobOpportunityDetails jobDetails;
+/////////////////////////////////////////////////////////
+///
+///
+///         Job Card
+///
 
-  const JobCard({Key? key, required this.jobDetails}) : super(key: key);
+class JobCard extends StatelessWidget {
+  final JobOpportunityDetailsModel jobDetails;
+
+  const JobCard({super.key, required this.jobDetails});
 
   Shader _iconGradient() {
     return const LinearGradient(
@@ -156,6 +181,7 @@ class JobCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.grey.withOpacity(0.15),
             blurRadius: 12,
             spreadRadius: 2,
@@ -224,12 +250,12 @@ class InfoTile extends StatelessWidget {
   final Shader? gradient;
 
   const InfoTile({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     required this.value,
     this.gradient,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -275,15 +301,22 @@ class InfoTile extends StatelessWidget {
   }
 }
 
+///////////////////////////////////////////////////////////////////////
+///
+///          Applicant Card
+///
+
 class ApplicantCard extends StatefulWidget {
   final JobApplicant applicant;
-  final void Function(String status)? onDecision;
+  final void Function(ApplicantStatus status)? onDecision;
+  final JobOpportunityDetailsModel? jobDetail;
 
   const ApplicantCard({
-    Key? key,
+    super.key,
+    this.jobDetail,
     required this.applicant,
     this.onDecision,
-  }) : super(key: key);
+  });
 
   @override
   State<ApplicantCard> createState() => _ApplicantCardState();
@@ -291,6 +324,17 @@ class ApplicantCard extends StatefulWidget {
 
 class _ApplicantCardState extends State<ApplicantCard> {
   bool _isLoading = false;
+  ApplicantStatus statusFromString(String status) {
+    switch (status.toLowerCase()) {
+      case 'accepted':
+        return ApplicantStatus.accept;
+      case 'rejected':
+        return ApplicantStatus.reject;
+      case 'pending':
+      default:
+        return ApplicantStatus.pending;
+    }
+  }
 
   Shader _iconGradient() {
     return const LinearGradient(
@@ -324,7 +368,7 @@ class _ApplicantCardState extends State<ApplicantCard> {
     );
   }
 
-  Future<void> _handleDecision(String status) async {
+  Future<void> _handleDecision(ApplicantStatus status) async {
     if (_isLoading) return;
     setState(() {
       _isLoading = true;
@@ -336,7 +380,8 @@ class _ApplicantCardState extends State<ApplicantCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Failed to ${status == 'accept' ? 'accept' : 'rejecte'} applicant'),
+            'Failed to ${status == ApplicantStatus.accept ? 'accept' : 'reject'} applicant',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -383,7 +428,8 @@ class _ApplicantCardState extends State<ApplicantCard> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    (applicant.status == 'pending')
+                    // ignore: unrelated_type_equality_checks
+                    (applicant.status == ApplicantStatus.pending)
                         ? (_isLoading
                             ? const SizedBox(
                                 height: 28,
@@ -396,13 +442,15 @@ class _ApplicantCardState extends State<ApplicantCard> {
                                   _actionButton(
                                     label: 'Accept',
                                     icon: Icons.check,
-                                    onTap: () => _handleDecision('accept'),
+                                    onTap: () =>
+                                        _handleDecision(ApplicantStatus.accept),
                                   ),
                                   const SizedBox(width: 8),
                                   _actionButton(
                                     label: 'Reject',
                                     icon: Icons.close,
-                                    onTap: () => _handleDecision('reject'),
+                                    onTap: () =>
+                                        _handleDecision(ApplicantStatus.reject),
                                   ),
                                 ],
                               ))
@@ -417,12 +465,19 @@ class _ApplicantCardState extends State<ApplicantCard> {
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: () {
+                        // ignore: unnecessary_null_comparison
                         if (applicant.id != null) {
+                          debugPrint('Navigating to ApplicantScreen with:');
+                          debugPrint('username: ${applicant.username}');
+                          debugPrint('id: ${applicant.id}');
+                          debugPrint('opportunityId: ${widget.jobDetail!.id}');
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => ApplicantScreen(
                                 username: applicant.username,
+                                id: applicant.id,
+                                opportunityId: widget.jobDetail!.id,
                               ),
                             ),
                           );
@@ -459,35 +514,15 @@ class _ApplicantCardState extends State<ApplicantCard> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return AnimatedScale(
-      scale: 1.0,
-      duration: const Duration(milliseconds: 200),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
-            ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.deepPurple.withOpacity(0.2),
-                offset: const Offset(0, 2),
-                blurRadius: 6,
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 18),
-              const SizedBox(width: 6),
-              Text(label, style: const TextStyle(color: Colors.white)),
-            ],
-          ),
-        ),
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        textStyle: const TextStyle(fontSize: 14),
+        backgroundColor: const Color(0xFF6366F1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

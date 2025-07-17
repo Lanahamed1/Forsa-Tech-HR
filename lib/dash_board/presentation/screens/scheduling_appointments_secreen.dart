@@ -1,14 +1,21 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forsatech/dash_board/business_logic/cubit/dash_board_cubit.dart';
 import 'package:forsatech/dash_board/business_logic/cubit/dash_board_state.dart';
-import 'package:forsatech/dash_board/data/model/model.dart';
+import 'package:forsatech/dash_board/data/model/appointment_model.dart';
+import 'package:forsatech/dash_board/data/web_services/google_calendar_web_service.dart';
+import 'package:forsatech/env.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+// ignore: depend_on_referenced_packages
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppointmentScreen extends StatefulWidget {
-  const AppointmentScreen({Key? key}) : super(key: key);
+  final String? prefilledEmail;
+  final int? id;
+  const AppointmentScreen({super.key, this.prefilledEmail, this.id});
 
   @override
   State<AppointmentScreen> createState() => _AppointmentScreenState();
@@ -16,15 +23,25 @@ class AppointmentScreen extends StatefulWidget {
 
 class _AppointmentScreenState extends State<AppointmentScreen> {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId:
-        '836989400409-gr9u5p3dpprh4d07i9tsp46fpe7mahv0.apps.googleusercontent.com',
-    scopes: ['email'],
+    clientId: googleApiKey,
+    scopes: [
+      'email',
+      'https://www.googleapis.com/auth/calendar',
+    ],
   );
 
   GoogleSignInAccount? _currentUser;
   bool _isSigningIn = false;
+
   final TextEditingController _recipientEmailController =
       TextEditingController();
+
+  final TextEditingController _descController = TextEditingController(
+    text:
+        'Dear Applicant,\n\nWe would like to invite you to an interview to discuss your application for the job opportunity. Please confirm your availability for the scheduled date and time.\n\nBest regards.',
+  );
+  final TextEditingController _TitleController =
+      TextEditingController(text: "Forsa-Tech");
 
   @override
   void initState() {
@@ -34,6 +51,12 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     });
     _googleSignIn.signInSilently();
     context.read<JobApponitCubit>().fetchJobs();
+    if (widget.prefilledEmail != null) {
+      _recipientEmailController.text = widget.prefilledEmail!;
+      context
+          .read<AppointmentCubit>()
+          .updateRecipientEmail(widget.prefilledEmail!);
+    }
   }
 
   void _onApplicantEmailTapped(String email) {
@@ -54,15 +77,16 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(state.errorMessage!)),
               );
-              // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+              // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
               cubit.emit(state.copyWith(errorMessage: null));
             }
+
             if (state.isSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                     content: Text('Appointment created successfully')),
               );
-              // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+              // ignore: invalid_use_of_visible_for_testing_member, invalid_use_of_protected_member
               cubit.emit(state.copyWith(isSuccess: false));
             }
           },
@@ -74,7 +98,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               insetPadding:
                   const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
               child: Container(
-                width: 550, // Fixed width for consistent layout
+                width: 550,
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -89,7 +113,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                           style: GoogleFonts.poppins(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF6366F1)),
+                              color: const Color(0xFF6366F1)),
                         ),
                       ],
                     ),
@@ -111,8 +135,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
                     const SizedBox(height: 22),
 
-                    // Title
                     TextField(
+                      controller: _TitleController,
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.title_outlined,
                             color: Color(0xFF6366F1)),
@@ -126,8 +150,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
                     const SizedBox(height: 22),
 
-                    // Description
                     TextField(
+                      controller: _descController,
                       maxLines: 3,
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.description_outlined,
@@ -135,21 +159,21 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         labelText: 'Description',
                         labelStyle: GoogleFonts.poppins(),
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       onChanged: cubit.updateDescription,
                     ),
 
                     const SizedBox(height: 15),
 
-                    // Date Picker
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.grey[200],
-                            foregroundColor: Color(0xFF6366F1),
+                            foregroundColor: const Color(0xFF6366F1),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(
@@ -173,14 +197,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                             style: GoogleFonts.poppins(),
                           ),
                         ),
-
                         const SizedBox(width: 10),
-
-                        // Time Picker
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.grey[200],
-                            foregroundColor: Color(0xFF6366F1),
+                            foregroundColor: const Color(0xFF6366F1),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(
@@ -206,7 +227,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -217,18 +237,77 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         const SizedBox(width: 10),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            padding:
-                                EdgeInsets.zero, // مهم لعرض التدرج بشكل صحيح
+                            padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                           onPressed: state.isSubmitting
                               ? null
-                              : () {
-                                  if (_currentUser != null) {
-                                    cubit.submitAppointment(_currentUser!);
-                                    Navigator.pop(context);
+                              : () async {
+                                  final selectedJob = widget.id != null
+                                      ? null
+                                      : context
+                                          .read<JobApponitCubit>()
+                                          .state
+                                          .selectedJob;
+
+                                  final userEmail =
+                                      widget.prefilledEmail?.trim() ??
+                                          _recipientEmailController.text.trim();
+                                  final jobId = widget.id ?? selectedJob?.id;
+
+                                  debugPrint(' userEmail: $userEmail');
+                                  debugPrint(' jobId: $jobId');
+                                  debugPrint(
+                                      ' selectedDate: ${state.selectedDate}');
+                                  debugPrint(
+                                      ' selectedTime: ${state.selectedTime}');
+
+                                  if (state.selectedDate != null &&
+                                      state.selectedTime != null &&
+                                      userEmail.isNotEmpty &&
+                                      jobId != null) {
+                                    final interviewDateTime = DateTime(
+                                      state.selectedDate!.year,
+                                      state.selectedDate!.month,
+                                      state.selectedDate!.day,
+                                      state.selectedTime!.hour,
+                                      state.selectedTime!.minute,
+                                    );
+
+                                    final interviewService = InterviewService();
+
+                                    try {
+                                      await interviewService.sendInterviewInfo(
+                                        username: userEmail,
+                                        jobId: jobId,
+                                        interviewDateTime: interviewDateTime,
+                                      );
+
+                                      context
+                                          .read<AppointmentCubit>()
+                                          .submitAppointment(_currentUser!);
+                                      Navigator.pop(context);
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Failed to send interview info: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Please fill all required fields (date, time, email, job).',
+                                        ),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
                                   }
                                 },
                           child: Ink(
@@ -285,6 +364,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
+//////////////////////////////////////////////////////////////////////////////////
+///////
+  ///                        handle Google SignIn
+
   void _handleGoogleSignIn(BuildContext context) async {
     setState(() => _isSigningIn = true);
     try {
@@ -304,28 +387,28 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   }
 
   @override
-   build(BuildContext context) {
+  build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        centerTitle: true,
-        elevation: 2,
-        iconTheme: const IconThemeData(color: Color(0xFF6366F1)),
-        title: Text(
-          'Create Interview Appointment',
-          style: GoogleFonts.poppins(
-            fontSize: 25,
-            fontWeight: FontWeight.bold,
-            foreground: Paint()
-              ..shader = const LinearGradient(
-                colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(const Rect.fromLTWH(0, 0, 300, 0)),
-          ),
-        ),
-      ),
+          backgroundColor: Colors.white,
+          centerTitle: true,
+          elevation: 0,
+          title: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ).createShader(bounds),
+            child: const Text(
+              'Create Interview Appointment',
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          )),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: BlocBuilder<JobApponitCubit, JobAppointState>(
@@ -404,7 +487,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                 const SizedBox(height: 20),
 
                 // Dropdown for job selection
-                DropdownButtonFormField<JobAppont>(
+                DropdownButtonFormField<JobAppointment>(
                   decoration: InputDecoration(
                     labelText: "Select Job",
                     labelStyle: GoogleFonts.poppins(),
@@ -435,7 +518,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   },
                 ),
 
-                // Show job details and applicants
                 if (state.selectedJob != null) ...[
                   const SizedBox(height: 20),
                   Card(
@@ -470,7 +552,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   Text('Applicants:',
                       style: GoogleFonts.poppins(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF6366F1))),
+                          color: const Color(0xFF6366F1))),
                   const SizedBox(height: 10),
                   ...state.selectedJob!.applicantsEmails.map((email) {
                     return Card(
@@ -491,6 +573,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         ),
                       ),
                     );
+                    // ignore: unnecessary_to_list_in_spreads
                   }).toList(),
                 ],
               ],
@@ -512,6 +595,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.2),
               blurRadius: 6,
               offset: const Offset(0, 3),
@@ -520,13 +604,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         ),
         child: FloatingActionButton.extended(
           onPressed: () {
+            _showCreateAppointmentDialog();
             if (_currentUser == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Please sign in first")),
               );
               return;
             }
-            _showCreateAppointmentDialog();
           },
           backgroundColor: Colors.transparent,
           elevation: 0,

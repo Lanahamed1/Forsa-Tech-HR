@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:forsatech/constants/strings.dart';
-import 'package:forsatech/dash_board/data/model/model.dart';
+import 'package:forsatech/dash_board/data/model/appointment_model.dart';
 import 'package:forsatech/token_manager.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -46,7 +46,7 @@ class GoogleCalendarService {
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception('حدث خطأ أثناء إنشاء الحدث: ${response.body}');
+      throw Exception('error ${response.body}');
     }
   }
 }
@@ -63,7 +63,7 @@ class JobAppointWebService {
     );
     dio = Dio(options);
   }
-  Future<List<JobAppont>> fromJsonJob() async {
+  Future<List<JobAppointment>> fromJsonJob() async {
     try {
       String? token = await TokenManager.getAccessToken();
 
@@ -78,18 +78,19 @@ class JobAppointWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
-      print('*** Response ***');
-      print('Status code: ${response.statusCode}');
-      print('Status code: ${response.statusCode}');
-      print('Response data: ${response.data}');
+      // print('*** Response ***');
+      // print('Status code: ${response.statusCode}');
+      // print('Status code: ${response.statusCode}');
+      // print('Response data: ${response.data}');
 
       if (response.statusCode == 200) {
         if (response.data is Map && response.data['opportunities'] != null) {
           List<dynamic> data = response.data['opportunities'];
-          return data.map((e) => JobAppont.fromJsonJob(e)).toList();
+          return data.map((e) => JobAppointment.fromJsonJob(e)).toList();
         } else {
           throw Exception('Unexpected data format');
         }
@@ -102,7 +103,7 @@ class JobAppointWebService {
     }
   }
 
-  Future<JobAppont> fetchJobById(int jobId) async {
+  Future<JobAppointment> fetchJobById(int jobId) async {
     try {
       final response = await dio.get(
         'opportunity-details/',
@@ -111,18 +112,19 @@ class JobAppointWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             "opportunity-id": jobId.toString(),
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
 
-      print('*** Response ***');
-      print('Status code: ${response.statusCode}');
-      print('Status code: ${response.statusCode}');
-      print('Response data: ${response.data}');
+      // print('*** Response ***');
+      // print('Status code: ${response.statusCode}');
+      // print('Status code: ${response.statusCode}');
+      // print('Response data: ${response.data}');
 
       if (response.statusCode == 200) {
         final data = response.data;
-        return JobAppont.fromJson(data);
+        return JobAppointment.fromJson(data);
       } else {
         throw Exception(
             'Failed to load opportunity, status: ${response.statusCode}');
@@ -130,6 +132,73 @@ class JobAppointWebService {
     } catch (e) {
       print('Error occurred while fetching opportunity: $e');
       throw Exception('Error occurred while fetching opportunity: $e');
+    }
+  }
+}
+
+class InterviewService {
+  late Dio dio;
+
+  InterviewService() {
+    BaseOptions options = BaseOptions(
+      baseUrl: baseUrl,
+      receiveDataWhenStatusError: true,
+      connectTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 30),
+    );
+    dio = Dio(options);
+
+    // اختياري: تسمح بفحص كل ردود السيرفر حتى لو خطأ (للتشخيص)
+    dio.options.validateStatus = (status) => true;
+  }
+
+  Future<void> sendInterviewInfo({
+    required String username,
+    required int jobId,
+    required DateTime interviewDateTime,
+  }) async {
+    final date = interviewDateTime.toIso8601String().split('T')[0];
+    final time =
+        interviewDateTime.toIso8601String().split('T')[1].substring(0, 8);
+
+    final data = {
+      'username': username,
+      'opportunity_id': jobId,
+      'date': date,
+      'time': time,
+    };
+    print('Request body: $data');
+
+    String? token = await TokenManager.getAccessToken();
+
+    if (token == null) {
+      debugPrint("No token found. Cannot proceed with request.");
+      throw Exception("Unauthorized: Token is missing");
+    }
+
+    try {
+      final response = await dio.post(
+        'schedule-interview/',
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
+          },
+        ),
+        data: data, // مرّر الـ Map مباشرة بدون json.encode
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('The data was successfully sent');
+      } else {
+        print('Response status code: ${response.statusCode}');
+        print('Response data: ${response.data}');
+        throw Exception('Failed with status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Fail to send data: $e');
+      rethrow;
     }
   }
 }

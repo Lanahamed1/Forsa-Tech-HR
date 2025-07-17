@@ -34,7 +34,36 @@ class RegisterWebServices {
         await TokenManager.saveToken(token);
         return response.data;
       } else {}
+      // ignore: empty_catches
     } catch (error) {}
     return null;
+  }
+
+  Future<void> sendContactMessage({
+    required String subject,
+    required String message,
+  }) async {
+    try {
+      String? token = await TokenManager.getAccessToken();
+      Response response = await dio.post(
+        'auth/complaints/',
+        data: jsonEncode({'title': subject, 'description': message}),
+        options: Options(
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      if (response.statusCode == 201) {
+        print('✅ Message sent successfully');
+      } else {
+        print('❌ Failed to send: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error sending message: $e');
+    }
   }
 }

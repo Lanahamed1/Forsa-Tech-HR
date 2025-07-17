@@ -14,13 +14,32 @@ class PoliciesWebService {
           connectTimeout: const Duration(seconds: 60),
           receiveTimeout: const Duration(seconds: 30),
         ));
-
   Future<PolicyModel> fetchPolicies() async {
     try {
-      final response = await dio.get('admin-dash/plans/');
-      debugPrint('Response data: ${response.data}');
-      return PolicyModel.fromJson(
-          response.data); // response.data هي List<dynamic>
+      String? token = await TokenManager.getAccessToken();
+
+      if (token == null) {
+        debugPrint("No token found. Cannot proceed with request.");
+        throw Exception("Unauthorized: Token is missing");
+      }
+
+      final response = await dio.get(
+        'plans/',
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
+          },
+        ),
+      );
+
+      // اطبع البيانات الخام القادمة من السيرفر:
+      debugPrint('Raw response data: ${response.data}');
+
+      final List<dynamic> jsonList = response.data;
+      return PolicyModel.fromJson(jsonList);
     } catch (e) {
       debugPrint('Error fetching policies: $e');
       throw Exception('Failed to load policies: $e');
@@ -46,6 +65,7 @@ class PoliciesWebService {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
           },
         ),
       );
@@ -54,6 +74,33 @@ class PoliciesWebService {
       return status;
     } catch (e) {
       throw Exception("Failed to subscribe to policy: $e");
+    }
+  }
+
+  Future<PolicyStatus> fetchSubscriptionStatus() async {
+    try {
+      String? token = await TokenManager.getAccessToken();
+
+      if (token == null) {
+        throw Exception("Unauthorized: Token is missing");
+      }
+
+      final response = await dio.get(
+        'check-subscription-status/',
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+            'ngrok-skip-browser-warning': 'true'
+          },
+        ),
+      );
+
+      return PolicyStatus.fromJson(response.data);
+    } catch (e) {
+      debugPrint("Error fetching subscription status: $e");
+      throw Exception("Failed to fetch subscription status: $e");
     }
   }
 }

@@ -1,7 +1,6 @@
 import 'package:forsatech/dash_board/data/model/policy_model.dart';
 import 'package:forsatech/dash_board/data/web_services/policy_web_services.dart';
 
-
 class PoliciesRepository {
   final PoliciesWebService webService;
 
@@ -11,8 +10,11 @@ class PoliciesRepository {
     return webService.fetchPolicies();
   }
 
- Future<String> subscribeToPolicy(int policyId) {
-  return webService.subscribeToPolicy(policyId);
-}
+  Future<String> subscribeToPolicy(int policyId) {
+    return webService.subscribeToPolicy(policyId);
+  }
 
+  Future<PolicyStatus> fetchSubscriptionStatus() {
+    return webService.fetchSubscriptionStatus();
+  }
 }

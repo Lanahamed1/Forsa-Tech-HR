@@ -1,39 +1,24 @@
 class PolicyModel {
-  final PolicyDetail freePolicy;
-  final PolicyDetail premiumPolicy;
-  final String? currentStatus;
+  final List<PolicyDetail> policies;
 
   PolicyModel({
-    required this.freePolicy,
-    required this.premiumPolicy,
-    this.currentStatus,
+    required this.policies,
   });
 
-  factory PolicyModel.fromJson(dynamic json) {
-    if (json is List) {
-      final freeJson = json.firstWhere(
-        (item) => item['name'] == 'free',
-        orElse: () => throw Exception('Free policy not found'),
-      );
+  factory PolicyModel.fromJson(List<dynamic> jsonPolicies) {
+    final List<PolicyDetail> policyList = jsonPolicies
+        .map((json) => PolicyDetail.fromJson(json as Map<String, dynamic>))
+        .toList();
 
-      final premiumJson = json.firstWhere(
-        (item) => item['name'] == 'paid',
-        orElse: () => throw Exception('Premium policy not found'),
-      );
-
-      return PolicyModel(
-        freePolicy: PolicyDetail.fromJson(freeJson),
-        premiumPolicy: PolicyDetail.fromJson(premiumJson),
-        currentStatus: null, 
-      );
-    } else {
-      throw Exception('Invalid JSON format: expected a List');
-    }
+    return PolicyModel(
+      policies: policyList,
+    );
   }
 }
 
 class PolicyDetail {
   final int id;
+  final bool isActiveForCompany;
   final String name;
   final int? jobPostLimit;
   final bool canGenerateTests;
@@ -43,6 +28,7 @@ class PolicyDetail {
 
   PolicyDetail({
     required this.id,
+    required this.isActiveForCompany,
     required this.name,
     required this.jobPostLimit,
     required this.canGenerateTests,
@@ -52,14 +38,38 @@ class PolicyDetail {
   });
 
   factory PolicyDetail.fromJson(Map<String, dynamic> json) {
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      if (value is int) return value == 1;
+      if (value is String) return value.toLowerCase() == 'true' || value == '1';
+      return false;
+    }
+
     return PolicyDetail(
       id: json['id'],
+      isActiveForCompany: parseBool(json['is_active_for_company']),
       name: json['name'],
       jobPostLimit: json['job_post_limit'],
-      canGenerateTests: json['can_generate_tests'],
-      canScheduleInterviews: json['can_schedule_interviews'],
+      canGenerateTests: parseBool(json['can_generate_tests']),
+      canScheduleInterviews: parseBool(json['can_schedule_interviews']),
       candidateSuggestions: json['candidate_suggestions'],
-      price: json['price'] != null ? double.tryParse(json['price'].toString()) : null,
+      price: json['price'] != null
+          ? double.tryParse(json['price'].toString())
+          : null,
+    );
+  }
+}
+
+class PolicyStatus {
+  final String status;
+  final String message;
+
+  PolicyStatus({required this.status, required this.message});
+
+  factory PolicyStatus.fromJson(Map<String, dynamic> json) {
+    return PolicyStatus(
+      status: json['status'],
+      message: json['message'],
     );
   }
 }
