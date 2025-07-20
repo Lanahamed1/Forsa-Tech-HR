@@ -33,15 +33,23 @@ class ApplicantWebService {
       );
 
       if (response.statusCode == 200) {
-        return ApplicantModel.fromJson(response.data);
-      } else {
-        throw Exception(
-            'Failed to load user profile, status: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error occurred while fetching user profile: $e');
-      throw Exception('Error occurred while fetching user profile: $e');
+      return ApplicantModel.fromJson(response.data);
+    } else if (response.statusCode == 404) {
+      throw ('This user does not have a resume (CV).');
+    } else {
+      throw (
+          'Failed to load resume. Server responded with status code ${response.statusCode}.');
     }
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 404) {
+      throw ('This user does not have a resume (CV).');
+    } else {
+      throw ('An error occurred while loading the resume: ${e.message}');
+    }
+  } catch (e) {
+    throw ('Unexpected error while fetching resume: $e');
+  }
+
   }
 
   Future<void> updateApplicantStatus(int requestId, String action) async {

@@ -15,6 +15,17 @@
   <script src="firebase-messaging-sw.js"></script>
 
   <script>
+     if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          .then(registration => {
+            console.log('Service Worker registered with scope:', registration.scope);
+          })
+          .catch(err => {
+            console.error('Service Worker registration failed:', err);
+          });
+      });
+    }
     if (!window.APP_CONFIG) {
       console.error("❌ لم يتم تحميل config.js");
     }
@@ -90,17 +101,7 @@
       google.accounts.id.prompt();
     };
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/firebase-messaging-sw.js')
-          .then(registration => {
-            console.log('Service Worker registered with scope:', registration.scope);
-          })
-          .catch(err => {
-            console.error('Service Worker registration failed:', err);
-          });
-      });
-    }
+   
   </script>
 
   <!-- Flutter & PWA Metadata -->

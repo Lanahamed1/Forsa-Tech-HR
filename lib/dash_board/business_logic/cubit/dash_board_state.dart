@@ -261,7 +261,6 @@ class PoliciesError extends PoliciesState {
   PoliciesError(this.message);
 }
 
-// حالة خاصة لأخطاء التحميل فقط
 class PoliciesLoadError extends PoliciesError {
   PoliciesLoadError(String message) : super(message);
 }
